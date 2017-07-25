@@ -29,16 +29,29 @@ From [How to Write a Git Commit Message](http://chris.beams.io/posts/git-commit/
 1. Use the body to explain what and why vs. how
 
 
+## Doc Changes
+
+When making doc changes, we want the change to work on both the gitbook and the regular github site. The issue is that non-doc files will not go to the gitbook site, so doc references to non doc files must use the github URL.
+
+### Links to other docs:
+* When making references to doc files, use a relative URL path like:
+`[Installation Overview](docs/basics/installation-overview.md)`
+
+* When making references to source code files, use a full url path like:
+`[spec/dummy/config/initializers/react_on_rails.rb](https://github.com/shakacode/react_on_rails/tree/master/spec/dummy/config/initializers/react_on_rails.rb)`
+
+
 ## To run tests:
 * After updating code via git, to prepare all examples and run all tests:
 
-```
-bundle && npm i && rake examples:prepare_all && rake node_package && rake
+```sh
+cd react_on_rails/
+bundle && yarn && rake examples:prepare_all && rake node_package && rake
 ```
 
 In order to run tests in browser
 ```
-npm i -g browserify babelify tape-run faucet
+yarn global add  browserify babelify tape-run faucet
 browserify -t babelify node_package/tests/*.js | tape-run | faucet
 ```
 
@@ -60,9 +73,17 @@ It's critical to configure your IDE/editor to ignore certain directories. Otherw
 * /spec/react_on_rails/dummy-for-generators
 
 # Configuring your test app to use your local fork
+You can test the `react-on-rails` gem using your own external test app or the gem's internal `spec/dummy` app. The `spec/dummy` app is an example of the various setup techniques you can use with the gem.
+```
+├── test
+|    └── client
+└── react_on_rails
+    └── spec
+        └── dummy
+```
 
-## Ruby Gem
-If you want to test the gem with an application before you release a new version of the gem, you can specify the path to your local version via your test app's Gemfile:
+## Testing the Ruby Gem
+If you want to test the ruby parts of the gem with an application before you release a new version of the gem, you can specify the path to your local version via your test app's Gemfile:
 
 ```ruby
 gem "react_on_rails", path: "../path-to-react-on-rails"
@@ -70,41 +91,30 @@ gem "react_on_rails", path: "../path-to-react-on-rails"
 
 Note that you will need to bundle install after making this change, but also that **you will need to restart your Rails application if you make any changes to the gem**.
 
-## NPM for react-on-rails
-First, be **sure** to build the NPM package
+## Testing the Node package for react-on-rails
+In addition to testing the Ruby parts out, you can also test the node package parts of the gem with an external application. First, be **sure** to build the NPM package:
 
 ```sh
-npm i
-npm run build
+cd react_on_rails/
+yarn
+yarn run build
 ```
 
-Use a relative path in your `package.json`, like this:
+Install the local package by using a relative path in your test/client app's `package.json`, like this:
 ```sh
-cd client
-npm install --save "react-on-rails@../../react_on_rails"
+cd test/client
+rm -rf node_modules/react-on-rails && npm i 'file:../path-to-react-on-rails-top-package.json'
 ```
+_Note: You must use npm here till yarn stops preferring cached packages over local. see [issue #2649](https://github.com/yarnpkg/yarn/issues/2649)_
 
-When you use a relative path, be sure to run the above `npm install` command whenever you change the node package for react-on-rails.
+When you use a relative path, be sure to run the above `yarn` command whenever you change the node package for react-on-rails.
 
-Wihle we'd prefer to us `npm link`, we get errors. If you can figure out how to get `npm link react-on-rails` to work with this project, please file an issue or PR! This used to work with babel 5.
+#### Example: Testing NPM changes with the dummy app
+1. Add `console.log('Hello!')` [here](https://github.com/shakacode/react_on_rails/blob/master/node_package/src/clientStartup.js#L181) in `react_on_rails/node_package/src/clientStartup.js` to confirm we're getting an update to the node package.
+2. The "postinstall" script of "spec/dummy/client" calls "yarn link react-on-rails" to setup a sym link to the parent package.
+3. Refresh the browser if the server is already running or start the server using `foreman start` from `react_on_rails/spec/dummy` and navigate to `http://localhost:5000/`. You will now see the `Hello!` message printed in the browser's console.
 
-This is the error:
-
-```
-16:34:11 rails-client-assets.1 | ERROR in /react_on_rails/node_package/lib/ReactOnRails.js
-16:34:11 rails-client-assets.1 | Module build failed: ReferenceError: Unknown plugin "react-transform" specified in "base" at 0, attempted to resolve relative to "/react_on_rails/node_package/lib"
-16:34:11 rails-client-assets.1 |     at /react-webpack-rails-tutorial/client/node_modules/babel-core/lib/transformation/file/options/option-manager.js:193:17
-16:34:11 rails-client-assets.1 |     at Array.map (native)
-16:34:11 rails-client-assets.1 |     at Function.normalisePlugins (/react-webpack-rails-tutorial/client/node_modules/babel-core/lib/transformation/file/options/option-manager.js:173:20)
-16:34:11 rails-client-assets.1 |     at OptionManager.mergeOptions (/react-webpack-rails-tutorial/client/node_modules/babel-core/lib/transformation/file/options/option-manager.js:271:36)
-16:34:11 rails-client-assets.1 |     at OptionManager.init (/react-webpack-rails-tutorial/client/node_modules/babel-core/lib/transformation/file/options/option-manager.js:416:10)
-16:34:11 rails-client-assets.1 |     at File.initOptions (/react-webpack-rails-tutorial/client/node_modules/babel-core/lib/transformation/file/index.js:191:75)
-16:34:11 rails-client-assets.1 |     at new File (/react-webpack-rails-tutorial/client/node_modules/babel-core/lib/transformation/file/index.js:122:22)
-16:34:11 rails-client-assets.1 |     at Pipeline.transform (/react-webpack-rails-tutorial/client/node_modules/babel-core/lib/transformation/pipeline.js:42:16)
-16:34:11 rails-client-assets.1 |     at transpile (/react-webpack-rails-tutorial/client/node_modules/babel-loader/index.js:14:22)
-16:34:11 rails-client-assets.1 |     at Object.module.exports (/react-webpack-rails-tutorial/client/node_modules/babel-loader/index.js:88:12)
-16:34:11 rails-client-assets.1 |  @ ./app/bundles/comments/startup/clientRegistration.jsx 15:20-45
-```
+_Note: running `npm i` automatically builds the npm package before installing. However, when using yarn you will need to run `yarn run build` in the root directory before the install script. This will be updated when [yarn issue #2649](https://github.com/yarnpkg/yarn/issues/2649) (above) is resolved._
 
 # Development Setup for Gem and Node Package Contributors
 
@@ -121,17 +131,19 @@ After checking out the repo, making sure you have rvm and nvm setup (setup ruby 
 Additionally, our RSpec tests use the poltergeist web driver. You will need to install the phantomjs node module:
 
 ```sh
-npm install -g phantomjs
+yarn global add phantomjs
 ```
 
 Note this *must* be installed globally for the dummy test project rspec runner to see it properly.
 
 ### Local Node Package
-Because the example and dummy apps rely on the react-on-rails node package, they should link directly to your local version to pick up any changes you may have made to that package. To achieve this, switch to the teat app's root directory and run this command below which runs something like [this script](spec/dummy/package.json#L14)
+Because the example and dummy apps rely on the react-on-rails node package, they should link directly to your local version to pick up any changes you may have made to that package. To achieve this, switch to the dummy app's root directory and run this command below which runs something like [this script](spec/dummy/package.json#L14)
 
 ```sh
-npm run install-react-on-rails
+cd react_on_rails/spec/dummy
+yarn run install-react-on-rails
 ```
+_Note: this runs npm under the hood as explained in **Test NPM for react-on-rails** section above_
 
 From now on, the example and dummy apps will use your local node_package folder as the react-on-rails node package. This will also be done automatically for you via the `rake examples:prepare_all` rake task.
 
@@ -149,45 +161,52 @@ From now on, the example and dummy apps will use your local node_package folder 
 ### Install NPM dependencies and build the NPM package for react-on-rails
 
 ```sh
-cd <top level>
-npm i
-npm build
+cd react_on_rails/
+yarn
+yarn build
 ```
 
-Or run this which builds the npm package, then the webpack files for spec/dummy, and runs tests in
+Or run this which builds the yarn package, then the webpack files for spec/dummy, and runs tests in
 spec/dummy.
 
 
 ```sh
 # Optionally change default selenium_firefox driver
 export DRIVER=poltergeist
-cd <top level>
-npm dummy:spec
+cd react_on_rails/
+yarn run dummy:spec
 ```
 
 ### Run NPM JS tests
 
 ```sh
-cd <top level>
-npm test
+cd react_on_rails/
+yarn test
 ```
 
 ### Run spec/dummy tests
 
 ```sh
-cd spec/dummy
-npm run test
+cd react_on_rails/spec/dummy
+rspec
+```
+
+Eventually, we may have JS tests:
+
+```sh
+cd react_on_rails/spec/dummy/client
+yarn run test
 ```
 
 ### Run most tests and linting
 
 ```sh
-cd <top level>
-npm run check
+cd react_on_rails/
+yarn run check
 ```
 
 ### Starting the Dummy App
-To run the test app, it's **CRITICAL** to not just run `rails s`. You have to run `foreman start`. If you don't do this, then `webpack` will not generate a new bundle, and you will be seriously confused when you change JavaScript and the app does not change. If you change the webpack configs, then you need to restart foreman. If you change the JS code for react-on-rails, you need to run `npm run build`. Since the react-on-rails package should be sym linked, you don't have to `npm i react-on-rails` after every change.
+To run the dummy app, it's **CRITICAL** to not just run `rails s`. You have to run `foreman start`. If you don't do this, then `webpack` will not generate a new bundle, and you will be seriously confused when you change JavaScript and the app does not change. If you change the webpack configs, then you need to restart foreman. If you change the JS code for react-on-rails, you need to run `yarn run build`. Since the react-on-rails package should be sym linked, you don't have to `yarn react-on-rails` after every change.
 
 ### RSpec Testing
 Run `rake` for testing the gem and `spec/dummy`. Otherwise, the `rspec` command only works for testing within the sample apps, like `spec/dummy`.
@@ -196,7 +215,13 @@ If you run `rspec` at the top level, you'll see this message: `require': cannot 
 
 After running a test, you can view the coverage results SimpleCov reports by opening `coverage/index.html`.
 
-To test `spec/dummy` against Turbolinks 5, install the gem by running `ENABLE_TURBOLINKS_5=TRUE bundle install` in the `spec/dummy` directory before running `rake`.
+Turbolinks 5 is included in the test app, unless "DISABLE_TURBOLINKS" is set to YES in the environment.
+
+Run `rake -T` or `rake -D` to see testing options.
+
+`rake all_but_examples` is typically best for developers, except if any generators changed.
+
+See below for verifying changes to the generators.
 
 ### Debugging
 Start the sample app like this for some debug printing:
@@ -216,6 +241,8 @@ The main installer can be run with ```rails generate react_on_rails:install```
 
 ### Testing the Generator
 The generators are covered by generator tests using Rails's generator testing helpers, but it never hurts to do a sanity check and explore the API. See [generator_testing_script.md](generator_testing_script.md) for a script on how to run the generator on a fresh project.
+
+`rake run_rspec:example_basic` is a great way to run tests on one generator. Once that works, you should run `rake run_rspec:examples`. Be aware that this will create a hug number of files under a `/gen-examples` directory. You should be sure to exclude this directory from your IDE and delete it once your testing is done.
 
 ### Linting
 All linting is performed from the docker container for CI. You will need docker and docker-compose installed locally to lint code changes via the lint container. You can lint locally by running `npm run lint && npm run flow`

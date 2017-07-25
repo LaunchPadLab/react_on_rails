@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # Defines tasks related to generating example apps using the gem's generator.
 # Allows us to create and test apps generated using a wide range of options.
 #
@@ -8,10 +10,11 @@ require_relative "example_type"
 require_relative "task_helpers"
 include ReactOnRails::TaskHelpers
 
+# rubocop:disable Metrics/BlockLength
 namespace :examples do
   # Loads data from examples_config.yml and instantiates corresponding ExampleType objects
   examples_config_file = File.expand_path("../examples_config.yml", __FILE__)
-  examples_config = symbolize_keys(YAML.load(File.read(examples_config_file)))
+  examples_config = symbolize_keys(YAML.safe_load(File.read(examples_config_file)))
   examples_config[:example_type_data].each { |example_type_data| ExampleType.new(symbolize_keys(example_type_data)) }
 
   # Define tasks for each example type
@@ -40,10 +43,10 @@ namespace :examples do
       sh_in_dir(example_type.client_dir, example_type.build_webpack_bundles_shell_commands)
     end
 
-    # NPM INSTALL
+    # YARN INSTALL
     task example_type.npm_install_task_name_short => example_type.package_json do
       unless uptodate?(example_type.node_modules_dir, [example_type.source_package_json])
-        sh_in_dir(example_type.client_dir, "npm install")
+        sh_in_dir(example_type.client_dir, "yarn install --mutex network")
       end
     end
 
@@ -71,7 +74,7 @@ namespace :examples do
     end
 
     # PREPARE
-    desc "Prepares #{example_type.name_pretty} (generates example, `npm install`s, and generates webpack bundles)"
+    desc "Prepares #{example_type.name_pretty} (generates example, `yarn`s, and generates webpack bundles)"
     multitask example_type.prepare_task_name_short => example_type.prepared_files do
       Rake::Task["node_package"].invoke
     end

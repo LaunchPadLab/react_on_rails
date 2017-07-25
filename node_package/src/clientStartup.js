@@ -3,10 +3,9 @@
 import ReactDOM from 'react-dom';
 
 import createReactElement from './createReactElement';
-import isRouterResult from './isRouterResult';
+import isRouterResult from './isCreateReactElementResultNonReactComponent';
 
-const REACT_ON_RAILS_COMPONENT_CLASS_NAME = 'js-react-on-rails-component';
-const REACT_ON_RAILS_STORE_CLASS_NAME = 'js-react-on-rails-store';
+const REACT_ON_RAILS_STORE_ATTRIBUTE = 'data-js-react-on-rails-store';
 
 function findContext() {
   if (typeof window.ReactOnRails !== 'undefined') {
@@ -42,21 +41,28 @@ function forEach(fn, className, railsContext) {
   }
 }
 
+function forEachByAttribute(fn, attributeName, railsContext) {
+  const els = document.querySelectorAll(`[${attributeName}]`);
+  for (let i = 0; i < els.length; i += 1) {
+    fn(els[i], railsContext);
+  }
+}
+
 function forEachComponent(fn, railsContext) {
-  forEach(fn, REACT_ON_RAILS_COMPONENT_CLASS_NAME, railsContext);
+  forEach(fn, 'js-react-on-rails-component', railsContext);
 }
 
 function initializeStore(el, railsContext) {
   const context = findContext();
-  const name = el.getAttribute('data-store-name');
-  const props = JSON.parse(el.getAttribute('data-props'));
+  const name = el.getAttribute(REACT_ON_RAILS_STORE_ATTRIBUTE);
+  const props = JSON.parse(el.textContent);
   const storeGenerator = context.ReactOnRails.getStoreGenerator(name);
   const store = storeGenerator(props, railsContext);
   context.ReactOnRails.setStore(name, store);
 }
 
 function forEachStore(railsContext) {
-  forEach(initializeStore, REACT_ON_RAILS_STORE_CLASS_NAME, railsContext);
+  forEachByAttribute(initializeStore, REACT_ON_RAILS_STORE_ATTRIBUTE, railsContext);
 }
 
 function turbolinksVersion5() {
@@ -84,6 +90,10 @@ DELEGATING TO RENDERER ${name} for dom node with id: ${domNodeId} with props, ra
   return false;
 }
 
+function domNodeIdForEl(el) {
+  return el.getAttribute('data-dom-id');
+}
+
 /**
  * Used for client rendering by ReactOnRails. Either calls ReactDOM.render or delegates
  * to a renderer registered by the user.
@@ -91,10 +101,11 @@ DELEGATING TO RENDERER ${name} for dom node with id: ${domNodeId} with props, ra
  */
 function render(el, railsContext) {
   const context = findContext();
+  // This must match app/helpers/react_on_rails_helper.rb:113
   const name = el.getAttribute('data-component-name');
-  const domNodeId = el.getAttribute('data-dom-id');
-  const props = JSON.parse(el.getAttribute('data-props'));
-  const trace = JSON.parse(el.getAttribute('data-trace'));
+  const domNodeId = domNodeIdForEl(el);
+  const props = JSON.parse(el.textContent);
+  const trace = el.getAttribute('data-trace');
 
   try {
     const domNode = document.getElementById(domNodeId);
@@ -121,7 +132,7 @@ You should return a React.Component always for the client side entry point.`);
       }
     }
   } catch (e) {
-    e.message = `ReactOnRails encountered an error while rendering component: ${name}.` +
+    e.message = `ReactOnRails encountered an error while rendering component: ${name}.\n` +
       `Original message: ${e.message}`;
     throw e;
   }
@@ -130,7 +141,7 @@ You should return a React.Component always for the client side entry point.`);
 function parseRailsContext() {
   const el = document.getElementById('js-react-on-rails-context');
   if (el) {
-    return JSON.parse(el.getAttribute('data-rails-context'));
+    return JSON.parse(el.textContent);
   }
 
   return null;
@@ -145,9 +156,14 @@ export function reactOnRailsPageLoaded() {
 }
 
 function unmount(el) {
-  const domNodeId = el.getAttribute('data-dom-id');
+  const domNodeId = domNodeIdForEl(el);
   const domNode = document.getElementById(domNodeId);
-  ReactDOM.unmountComponentAtNode(domNode);
+  try {
+    ReactDOM.unmountComponentAtNode(domNode);
+  } catch (e) {
+    console.info(`Caught error calling unmountComponentAtNode: ${e.message} for domNode`,
+      domNode, e);
+  }
 }
 
 function reactOnRailsPageUnloaded() {
@@ -183,9 +199,10 @@ export function clientStartup(context) {
       if (turbolinksVersion5()) {
         debugTurbolinks(
           'USING TURBOLINKS 5: document added event listeners ' +
-          ' turbolinks:before-visit and turbolinks:load.');
-        document.addEventListener('turbolinks:before-visit', reactOnRailsPageUnloaded);
-        document.addEventListener('turbolinks:load', reactOnRailsPageLoaded);
+          'turbolinks:before-render and turbolinks:render.');
+        document.addEventListener('turbolinks:before-render', reactOnRailsPageUnloaded);
+        document.addEventListener('turbolinks:render', reactOnRailsPageLoaded);
+        reactOnRailsPageLoaded();
       } else {
         debugTurbolinks(
           'USING TURBOLINKS 2: document added event listeners page:before-unload and ' +

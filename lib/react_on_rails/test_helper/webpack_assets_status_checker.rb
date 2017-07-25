@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "rake"
 require "fileutils"
 require "react_on_rails/utils"
@@ -22,6 +24,11 @@ module ReactOnRails
       end
 
       def stale_generated_webpack_files
+        manifest_needed = ReactOnRails::Utils.using_webpacker_lite? &&
+                          !WebpackerLite::Manifest.exist?
+
+        return ["manifest.json"] if manifest_needed
+
         most_recent_mtime = find_most_recent_mtime
         all_compiled_assets.each_with_object([]) do |webpack_generated_file, stale_gen_list|
           if !File.exist?(webpack_generated_file) ||
@@ -43,8 +50,8 @@ module ReactOnRails
 
       def all_compiled_assets
         @all_compiled_assets ||= begin
-          webpack_generated_files = @webpack_generated_files.map do |file|
-            File.join(@generated_assets_dir, file)
+          webpack_generated_files = @webpack_generated_files.map do |bundle_name|
+            ReactOnRails::Utils.bundle_js_file_path(bundle_name)
           end
           if webpack_generated_files.present?
             webpack_generated_files

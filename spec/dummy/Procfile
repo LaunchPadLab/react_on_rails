@@ -1,1 +1,1 @@
-rails: REACT_ON_RAILS_ENV=HOT rails s -b 0.0.0.0
+run: echo "Run Procfile.static or Procfile.hot"

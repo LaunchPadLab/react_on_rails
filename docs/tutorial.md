@@ -1,38 +1,39 @@
 # React on Rails Basic Tutorial
 
-This tutorial setups up a new Rails app with **React on Rails**, demonstrating Rails + React + Redux + Server Rendering.
+This tutorial setups up a new Rails app with **React on Rails**, demonstrating Rails + React + Redux + Server Rendering. It is updated to 8.0.0.
 
-After finishing this tutorial you will get application that can do the following (live on Heroku):
+After finishing this tutorial you will get an application that can do the following (live on Heroku):
 
 ![example](https://cloud.githubusercontent.com/assets/371302/17368567/111cc722-596b-11e6-9b72-ac5967a60e42.gif)
 
 You can find here:
-* [Source code for this app](https://github.com/dzirtusss/hello-react-on-rails)
-* [Live on Heroku](https://hello-react-on-rails.herokuapp.com/)
-
-Old version of this app is here:
-* [Source code](https://github.com/justin808/test-react-on-rails-3)
-* [Live on Heroku](https://shakacode-react-on-rails.herokuapp.com/hello_world)
+* [Source code for this app in PR, using the --redux option](https://github.com/shakacode/react_on_rails-test-new-redux-generation/pull/17) and [for Heroku](https://github.com/shakacode/react_on_rails-test-new-redux-generation/pull/18).
+* [Live on Heroku](https://react-on-rails-redux-gen-8-0-0.herokuapp.com/)
 
 By the time you read this, the latest may have changed. Be sure to check the versions here:
 
 * https://rubygems.org/gems/react_on_rails
 * https://www.npmjs.com/package/react-on-rails
 
-##Setting up the environment
+_Note: some of the screen images below show the "npm" command. react_on_rails 6.6.0 and greater uses `yarn`._
 
-Trying out **React on Rails** is super easy, so long as you have the basic prerequisites. This includes the basics for Rails 4.x and node version 5+. I recommend `rvm` and `nvm` to install Ruby and Node. Rails can be installed as ordinary gem.
+## Setting up the environment
+
+Trying out **React on Rails** is super easy, so long as you have the basic prerequisites. This includes the basics for Rails 4.x and node version 6+. I recommend `rvm` and `nvm` to install Ruby and Node, and [brew](https://brew.sh/) to install [yarn](https://yarnpkg.com/en/docs/install#mac-tab). Rails can be installed as an ordinary gem.
 
 ```
 nvm install node                # download and install latest stable Node
 nvm alias default node          # make it default version
 nvm list                        # check
 
+brew install yarn               # you can use other installer if desired
+
 rvm install 2.3.1               # download and install latest stable Ruby (update to exact version)
 rvm use 2.3.1 --default         # use it and make it default
 rvm list                        # check
 
 gem install rails               # download and install latest stable Rails
+gem install foreman             # download and install Foreman
 ```
 
 Then we need to create a fresh Rails application as following:
@@ -50,7 +51,7 @@ cd test-react-on-rails
 Add **React On Rails** gem to your Gemfile (`vim Gemfile` or `nano Gemfile` or in IDE):
 
 ```
-gem 'react_on_rails', '~>6'         # use latest gem version > 6
+gem 'react_on_rails', '8.0.0'         # use latest gem version, prefer exact version 
 ```
 
 ![02](https://cloud.githubusercontent.com/assets/20628911/17464919/3c2d74c2-5cf2-11e6-8704-a84958832fbb.png)
@@ -64,12 +65,12 @@ git add -A
 git commit -m "Initial commit"
 ```
 
-update dependencies and generate empty app via `react_on_rails:install`. If you haven't done first git commit it will generate error and you just need to commit.
+update dependencies and generate empty app via `react_on_rails:install` or `react_on_rails:install --redux`. You need to first git commit your files before running the generator, or else it will generate an error.
 
 ```
 bundle
 rails generate react_on_rails:install
-bundle && npm install
+bundle && yarn
 ```
 
 ![03](https://cloud.githubusercontent.com/assets/20628911/17464918/3c2c1f00-5cf2-11e6-9525-7b2e15659e01.png)
@@ -82,14 +83,14 @@ foreman start -f Procfile.dev
 
 ![04](https://cloud.githubusercontent.com/assets/20628911/17464921/3c2fdb40-5cf2-11e6-9343-6afa53593a70.png)
 
-
 Visit http://localhost:3000/hello_world and see your **React On Rails** app running!
+Note, foreman defaults to PORT 5000 unless you set the value of PORT in your environment or in the Procfile.
 
 ![05](https://cloud.githubusercontent.com/assets/20628911/17464920/3c2e8ae2-5cf2-11e6-9e30-5ec5f9e2cbc6.png)
 
 ### Custom IP & PORT setup (Cloud9 example)
 
-In case you are running some custom setup with different IP or PORT you should also edit Procfile.dev. For example to be able to run on free Cloud9 IDE we are putting IP 0.0.0.0 and PORT 8080
+In case you are running some custom setup with different IP or PORT you should also edit Procfile.dev. For example to be able to run on free Cloud9 IDE we are putting IP 0.0.0.0 and PORT 8080. The default generated file `Procfile.dev` uses `-p 3000`.
 
 ``` Procfile.dev
 web: rails s -p 8080 -b 0.0.0.0
@@ -97,11 +98,12 @@ web: rails s -p 8080 -b 0.0.0.0
 
 Then visit https://your-shared-addr.c9users.io:8080/hello_world 
 
+
 ## RubyMine
 
 It's super important to exclude certain directories from RubyMine or else it will slow to a crawl as it tries to parse all the npm files.
 
-* `app/assets/webpack`
+* `public/webpack` (or `app/assets/webpack` on older versions of react_on_rails)
 * `client/node_modules`
 
 ## Deploying to Heroku
@@ -177,6 +179,32 @@ root "hello_world#index"
 
 ![09](https://cloud.githubusercontent.com/assets/20628911/17465018/1f3b685e-5cf4-11e6-93f8-105fc48517d0.png)
 
+Next, configure your app for Puma, per the [instructions on Heroku](https://devcenter.heroku.com/articles/deploying-rails-applications-with-the-puma-web-server).
+
+`Procfile`
+```
+web: bundle exec puma -C config/puma.rb
+```
+
+`config/puma.rb`
+```rb
+workers Integer(ENV['WEB_CONCURRENCY'] || 2)
+threads_count = Integer(ENV['RAILS_MAX_THREADS'] || 5)
+threads threads_count, threads_count
+
+preload_app!
+
+rackup      DefaultRackup
+port        ENV['PORT']     || 3000
+environment ENV['RACK_ENV'] || 'development'
+
+on_worker_boot do
+  # Worker specific setup for Rails 4.1+
+  # See: https://devcenter.heroku.com/articles/deploying-rails-applications-with-the-puma-web-server#on-worker-boot
+  ActiveRecord::Base.establish_connection
+end
+```
+
 Then after all changes are done don't forget to commit them with git and finally you can push your app to Heroku!
 
 ```
@@ -187,9 +215,11 @@ git push heroku master
 
 ![10](https://cloud.githubusercontent.com/assets/20628911/17465017/1f38fbaa-5cf4-11e6-8d86-a3d91e3878e0.png)
 
-Here it is:
+## Links
+These are updated for 8.0.0:
 
-* [Source code for this sample app](https://github.com/dzirtusss/hello-react-on-rails)
-* [Live on Heroku](https://hello-react-on-rails.herokuapp.com/)
+* [PR for using the generator with the Redux option](https://github.com/shakacode/react_on_rails-test-new-redux-generation/pull/17)
+* [PR showing the changes to deploy to Heroku](https://github.com/shakacode/react_on_rails-test-new-redux-generation/pull/18)
+* [Live on Heroku](https://hello-react-on-rails-8-0-0.herokuapp.com/)
 
-Feedback is greatly appreciated! As are stars on github!
+Feedback is greatly appreciated! As are stars on github! If you want personalized help, don't hesitate to get in touch with us at [contact@shakacode.com](mailto:contact@shakacode.com).

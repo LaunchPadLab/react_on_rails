@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # rubocop:disable Metrics/ModuleLength
 # NOTE:
 # For any heredoc JS:
@@ -6,9 +8,12 @@
 require "react_on_rails/prerender_error"
 require "addressable/uri"
 require "react_on_rails/utils"
+require "react_on_rails/json_output"
 
 module ReactOnRailsHelper
   include ReactOnRails::Utils::Required
+
+  COMPONENT_HTML_KEY = "componentHtml"
 
   # The env_javascript_include_tag and env_stylesheet_link_tag support the usage of a webpack
   # dev server for providing the JS and CSS assets during development mode. See
@@ -103,16 +108,18 @@ module ReactOnRailsHelper
 
     # Setup the page_loaded_js, which is the same regardless of prerendering or not!
     # The reason is that React is smart about not doing extra work if the server rendering did its job.
-
-    component_specification_tag =
-      content_tag(:div,
-                  "",
-                  class: "js-react-on-rails-component",
-                  style: options.style,
-                  data: options.data)
+    component_specification_tag = content_tag(:script,
+                                              json_safe_and_pretty(options.props).html_safe,
+                                              type: "application/json",
+                                              class: "js-react-on-rails-component",
+                                              "data-component-name" => options.name,
+                                              "data-trace" => (options.trace ? true : nil),
+                                              "data-dom-id" => options.dom_id)
 
     # Create the HTML rendering part
-    result = server_rendered_react_component_html(options.props, options.name, options.dom_id,
+    result = server_rendered_react_component_html(options.props,
+                                                  options.name,
+                                                  options.dom_id,
                                                   prerender: options.prerender,
                                                   trace: options.trace,
                                                   raise_on_prerender_error: options.raise_on_prerender_error)
@@ -120,21 +127,23 @@ module ReactOnRailsHelper
     server_rendered_html = result["html"]
     console_script = result["consoleReplayScript"]
 
-    content_tag_options = options.html_options
-    content_tag_options[:id] = options.dom_id
-
-    rendered_output = content_tag(:div,
-                                  server_rendered_html.html_safe,
-                                  content_tag_options)
-
-    # IMPORTANT: Ensure that we mark string as html_safe to avoid escaping.
-    result = <<-HTML.html_safe
-#{component_specification_tag}
-    #{rendered_output}
-    #{options.replay_console ? console_script : ''}
-    HTML
-
-    prepend_render_rails_context(result)
+    if server_rendered_html.is_a?(String)
+      build_react_component_result_for_server_rendered_string(
+        server_rendered_html: server_rendered_html,
+        component_specification_tag: component_specification_tag,
+        console_script: console_script,
+        options: options
+      )
+    elsif server_rendered_html.is_a?(Hash)
+      build_react_component_result_for_server_rendered_hash(
+        server_rendered_html: server_rendered_html,
+        component_specification_tag: component_specification_tag,
+        console_script: console_script,
+        options: options
+      )
+    else
+      raise "server_rendered_html expected to be a String or a Hash."
+    end
   end
 
   # Separate initialization of store from react_component allows multiple react_component calls to
@@ -168,45 +177,45 @@ module ReactOnRailsHelper
   # that contains a data props.
   def redux_store_hydration_data
     return if @registered_stores_defer_render.blank?
-    @registered_stores_defer_render.reduce("") do |accum, redux_store_data|
+    @registered_stores_defer_render.reduce("".dup) do |accum, redux_store_data|
       accum << render_redux_store_data(redux_store_data)
     end.html_safe
   end
 
   def sanitized_props_string(props)
-    props.is_a?(String) ? json_escape(props) : props.to_json
+    props.is_a?(String) ? ERB::Util.json_escape(props) : props.to_json
   end
 
   # Helper method to take javascript expression and returns the output from evaluating it.
   # If you have more than one line that needs to be executed, wrap it in an IIFE.
   # JS exceptions are caught and console messages are handled properly.
   def server_render_js(js_expression, options = {})
-    wrapper_js = <<-JS
-(function() {
-  var htmlResult = '';
-  var consoleReplayScript = '';
-  var hasErrors = false;
-
-  try {
-    htmlResult =
+    wrapper_js = <<-JS.strip_heredoc
       (function() {
-        return #{js_expression};
-      })();
-  } catch(e) {
-    htmlResult = ReactOnRails.handleError({e: e, name: null,
-      jsCode: '#{escape_javascript(js_expression)}', serverSide: true});
-    hasErrors = true;
-  }
+        var htmlResult = '';
+        var consoleReplayScript = '';
+        var hasErrors = false;
 
-  consoleReplayScript = ReactOnRails.buildConsoleReplay();
+        try {
+          htmlResult =
+            (function() {
+              return #{js_expression};
+            })();
+        } catch(e) {
+          htmlResult = ReactOnRails.handleError({e: e, name: null,
+            jsCode: '#{escape_javascript(js_expression)}', serverSide: true});
+          hasErrors = true;
+        }
 
-  return JSON.stringify({
-      html: htmlResult,
-      consoleReplayScript: consoleReplayScript,
-      hasErrors: hasErrors
-  });
+        consoleReplayScript = ReactOnRails.buildConsoleReplay();
 
-})()
+        return JSON.stringify({
+            html: htmlResult,
+            consoleReplayScript: consoleReplayScript,
+            hasErrors: hasErrors
+        });
+
+      })()
     JS
 
     result = ReactOnRails::ServerRenderingPool.server_render_js_with_console_logging(wrapper_js)
@@ -216,39 +225,114 @@ module ReactOnRailsHelper
     console_log_script = result["consoleLogScript"]
     raw("#{html}#{replay_console_option(options[:replay_console_option]) ? console_log_script : ''}")
   rescue ExecJS::ProgramError => err
-    # rubocop:disable Style/RaiseArgs
-    raise ReactOnRails::PrerenderError.new(component_name: "N/A (server_render_js called)",
-                                           err: err,
-                                           js_code: wrapper_js)
+    raise ReactOnRails::PrerenderError, component_name: "N/A (server_render_js called)",
+                                        err: err,
+                                        js_code: wrapper_js
     # rubocop:enable Style/RaiseArgs
   end
 
+  def json_safe_and_pretty(hash_or_string)
+    return "{}" if hash_or_string.nil?
+    unless hash_or_string.class.in?([Hash, String])
+      raise "#{__method__} only accepts String or Hash as argument "\
+            "(#{hash_or_string.class} given)."
+    end
+
+    json_value = hash_or_string.is_a?(String) ? hash_or_string : hash_or_string.to_json
+
+    ReactOnRails::JsonOutput.escape(json_value)
+  end
+
   private
+
+  def build_react_component_result_for_server_rendered_string(
+    server_rendered_html: required("server_rendered_html"),
+    component_specification_tag: required("component_specification_tag"),
+    console_script: required("console_script"),
+    options: required("options")
+  )
+    content_tag_options = options.html_options
+    content_tag_options[:id] = options.dom_id
+
+    rendered_output = content_tag(:div,
+                                  server_rendered_html.html_safe,
+                                  content_tag_options)
+
+    result_console_script = options.replay_console ? console_script : ""
+    result = compose_react_component_html_with_spec_and_console(
+      component_specification_tag, rendered_output, result_console_script
+    )
+
+    prepend_render_rails_context(result)
+  end
+
+  def build_react_component_result_for_server_rendered_hash(
+    server_rendered_html: required("server_rendered_html"),
+    component_specification_tag: required("component_specification_tag"),
+    console_script: required("console_script"),
+    options: required("options")
+  )
+    content_tag_options = options.html_options
+    content_tag_options[:id] = options.dom_id
+
+    unless server_rendered_html[COMPONENT_HTML_KEY]
+      raise "server_rendered_html hash expected to contain \"#{COMPONENT_HTML_KEY}\" key."
+    end
+
+    rendered_output = content_tag(:div,
+                                  server_rendered_html[COMPONENT_HTML_KEY].html_safe,
+                                  content_tag_options)
+
+    result_console_script = options.replay_console ? console_script : ""
+    result = compose_react_component_html_with_spec_and_console(
+      component_specification_tag, rendered_output, result_console_script
+    )
+
+    # Other HTML strings need to be marked as html_safe too:
+    server_rendered_hash_except_component = server_rendered_html.except(COMPONENT_HTML_KEY)
+    server_rendered_hash_except_component.each do |key, html_string|
+      server_rendered_hash_except_component[key] = html_string.html_safe
+    end
+
+    result_with_rails_context = prepend_render_rails_context(result)
+    { COMPONENT_HTML_KEY => result_with_rails_context }.merge(
+      server_rendered_hash_except_component
+    )
+  end
+
+  def compose_react_component_html_with_spec_and_console(component_specification_tag, rendered_output, console_script)
+    # IMPORTANT: Ensure that we mark string as html_safe to avoid escaping.
+    # rubocop:disable Layout/IndentHeredoc
+    <<-HTML.html_safe
+#{component_specification_tag}
+    #{rendered_output}
+    #{console_script}
+    HTML
+    # rubocop:enable Layout/IndentHeredoc
+  end
 
   # prepend the rails_context if not yet applied
   def prepend_render_rails_context(render_value)
     return render_value if @rendered_rails_context
 
-    data = {
-      rails_context: rails_context(server_side: false)
-    }
+    data = rails_context(server_side: false)
 
     @rendered_rails_context = true
 
-    rails_context_content = content_tag(:div,
-                                        "",
-                                        id: "js-react-on-rails-context",
-                                        style: ReactOnRails.configuration.skip_display_none ? nil : "display:none",
-                                        data: data)
+    rails_context_content = content_tag(:script,
+                                        json_safe_and_pretty(data).html_safe,
+                                        type: "application/json",
+                                        id: "js-react-on-rails-context")
+
     "#{rails_context_content}\n#{render_value}".html_safe
   end
 
   def render_redux_store_data(redux_store_data)
-    result = content_tag(:div,
-                         "",
-                         class: "js-react-on-rails-store",
-                         style: ReactOnRails.configuration.skip_display_none ? nil : "display:none",
-                         data: redux_store_data)
+    result = content_tag(:script,
+                         json_safe_and_pretty(redux_store_data[:props]).html_safe,
+                         type: "application/json",
+                         "data-js-react-on-rails-store" => redux_store_data[:store_name].html_safe)
+
     prepend_render_rails_context(result)
   end
 
@@ -287,6 +371,7 @@ module ReactOnRailsHelper
     #
     # Read more here: http://timelessrepo.com/json-isnt-a-javascript-subset
 
+    # rubocop:disable Layout/IndentHeredoc
     wrapper_js = <<-JS
 (function() {
   var railsContext = #{rails_context(server_side: true).to_json};
@@ -301,46 +386,49 @@ module ReactOnRailsHelper
   });
 })()
     JS
+    # rubocop:enable Layout/IndentHeredoc
 
     result = ReactOnRails::ServerRenderingPool.server_render_js_with_console_logging(wrapper_js)
 
     if result["hasErrors"] && raise_on_prerender_error
       # We caught this exception on our backtrace handler
-      # rubocop:disable Style/RaiseArgs
-      raise ReactOnRails::PrerenderError.new(component_name: react_component_name,
-                                             # Sanitize as this might be browser logged
-                                             props: sanitized_props_string(props),
-                                             err: nil,
-                                             js_code: wrapper_js,
-                                             console_messages: result["consoleReplayScript"])
+      raise ReactOnRails::PrerenderError, component_name: react_component_name,
+                                          # Sanitize as this might be browser logged
+                                          props: sanitized_props_string(props),
+                                          err: nil,
+                                          js_code: wrapper_js,
+                                          console_messages: result["consoleReplayScript"]
       # rubocop:enable Style/RaiseArgs
     end
     result
   rescue ExecJS::ProgramError => err
     # This error came from execJs
-    # rubocop:disable Style/RaiseArgs
-    raise ReactOnRails::PrerenderError.new(component_name: react_component_name,
-                                           # Sanitize as this might be browser logged
-                                           props: sanitized_props_string(props),
-                                           err: err,
-                                           js_code: wrapper_js)
+    raise ReactOnRails::PrerenderError, component_name: react_component_name,
+                                        # Sanitize as this might be browser logged
+                                        props: sanitized_props_string(props),
+                                        err: err,
+                                        js_code: wrapper_js
     # rubocop:enable Style/RaiseArgs
   end
 
   def initialize_redux_stores
     return "" unless @registered_stores.present? || @registered_stores_defer_render.present?
-    declarations = "var reduxProps, store, storeGenerator;\n"
+    declarations = "var reduxProps, store, storeGenerator;\n".dup
 
     all_stores = (@registered_stores || []) + (@registered_stores_defer_render || [])
 
-    result = all_stores.each_with_object(declarations) do |redux_store_data, memo|
+    result = <<-JS.dup
+      ReactOnRails.clearHydratedStores();
+    JS
+
+    result << all_stores.each_with_object(declarations) do |redux_store_data, memo|
       store_name = redux_store_data[:store_name]
       props = props_string(redux_store_data[:props])
-      memo << <<-JS
-reduxProps = #{props};
-storeGenerator = ReactOnRails.getStoreGenerator('#{store_name}');
-store = storeGenerator(reduxProps, railsContext);
-ReactOnRails.setStore('#{store_name}', store);
+      memo << <<-JS.strip_heredoc
+        reduxProps = #{props};
+        storeGenerator = ReactOnRails.getStoreGenerator('#{store_name}');
+        store = storeGenerator(reduxProps, railsContext);
+        ReactOnRails.setStore('#{store_name}', store);
       JS
     end
     result
@@ -404,7 +492,7 @@ ReactOnRails.setStore('#{store_name}', store);
   def send_tag_method(tag_method_name, args)
     asset_type = use_hot_reloading? ? :hot : :static
     assets = Array(args[asset_type])
-    options = args.delete_if { |key, _value| %i(hot static).include?(key) }
+    options = args.delete_if { |key, _value| %i[hot static].include?(key) }
     send(tag_method_name, *assets, options) unless assets.empty?
   end
 

@@ -1,9 +1,12 @@
+# frozen_string_literal: true
+
 require_relative "task_helpers"
 include ReactOnRails::TaskHelpers
 
 namespace :node_package do
   task :build do
-    sh "npm run build"
+    puts "Building Node Package and running 'yarn link'"
+    sh "yarn run build && yarn link"
   end
 end
 

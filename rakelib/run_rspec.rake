@@ -1,6 +1,6 @@
-if ENV["USE_COVERALLS"] == "TRUE"
-  require "coveralls/rake/task"
-end
+# frozen_string_literal: true
+
+require "coveralls/rake/task" if ENV["USE_COVERALLS"] == "TRUE"
 
 require "pathname"
 
@@ -9,6 +9,7 @@ require_relative "example_type"
 
 include ReactOnRails::TaskHelpers
 
+# rubocop:disable Metrics/BlockLength
 namespace :run_rspec do
   spec_dummy_dir = File.join("spec", "dummy")
 
@@ -20,23 +21,17 @@ namespace :run_rspec do
   desc "Runs dummy rspec with turbolinks"
   task dummy: ["dummy_apps:dummy_app"] do
     clean_gen_assets(spec_dummy_dir)
+    bundle_install_in(dummy_app_dir)
     run_tests_in(spec_dummy_dir)
   end
 
   desc "Runs dummy rspec without turbolinks"
   task dummy_no_turbolinks: ["dummy_apps:dummy_app"] do
     clean_gen_assets(spec_dummy_dir)
+    bundle_install_in(dummy_app_dir)
     run_tests_in(spec_dummy_dir,
                  env_vars: "DISABLE_TURBOLINKS=TRUE",
                  command_name: "dummy_no_turbolinks")
-    bundle_install_in(dummy_app_dir)
-  end
-
-  desc "Runs dummy respec with turbolinks 5"
-  task dummy_turbolinks_5: ["dummy_apps:dummy_app_with_turbolinks_5"] do
-    clean_gen_assets(spec_dummy_dir)
-    run_tests_in(spec_dummy_dir, env_vars:
-      "ENABLE_TURBOLINKS_5=TRUE BUNDLE_GEMFILE=#{dummy_app_dir}/Gemfile")
   end
 
   # Dynamically define Rake tasks for each example app found in the examples directory
@@ -54,43 +49,46 @@ namespace :run_rspec do
 
   desc "(HACK) Run RSpec on spec/empty_spec in order to have SimpleCov generate a coverage report from cache"
   task :empty do
-    sh %(COVERAGE=true rspec spec/empty_spec.rb)
+    sh %(#{ENV['USE_COVERALLS'] ? 'COVERAGE=true' : ''} rspec spec/empty_spec.rb)
   end
 
-  if ENV["USE_COVERALLS"] == "TRUE"
-    Coveralls::RakeTask.new
-  end
+  Coveralls::RakeTask.new if ENV["USE_COVERALLS"] == "TRUE"
 
   desc "run all tests no examples"
-  task all_but_examples: [:gem, :dummy, :dummy_no_turbolinks, :dummy_turbolinks_5, :empty, :js_tests] do
+  task all_but_examples: %i[gem dummy_no_turbolinks dummy empty js_tests] do
     puts "Completed all RSpec tests"
   end
 
   desc "run all tests"
-  task run_rspec: [:all_but_examples, :examples] do
+  task run_rspec: %i[all_but_examples examples] do
     puts "Completed all RSpec tests"
   end
 end
 
-desc "js tests (same as 'npm run test')"
+desc "js tests (same as 'yarn run test')"
 task :js_tests do
-  sh "npm run test"
+  sh "yarn run test"
 end
 
-desc "Runs all tests. Run `rake -D run_rspec` to see all available test options"
+msg = <<-DESC.strip_heredoc
+  Runs all tests, run `rake -D run_rspec` to see all available test options.
+  "rake run_rspec:example_basic" is a good way to run only one generator test.
+DESC
+desc msg
 task run_rspec: ["run_rspec:run_rspec"]
 
 private
+
 def calc_path(dir)
-  if dir.is_a?(String)
-    path = if dir.start_with?(File::SEPARATOR)
+  path = if dir.is_a?(String)
+           if dir.start_with?(File::SEPARATOR)
              Pathname.new(dir)
            else
              Pathname.new(File.join(gem_root, dir))
            end
-  else
-    path = dir
-  end
+         else
+           dir
+         end
   path
 end
 
@@ -103,11 +101,12 @@ def run_tests_in(dir, options = {})
 
   command_name = options.fetch(:command_name, path.basename)
   rspec_args = options.fetch(:rspec_args, "")
-  env_vars = %(#{options.fetch(:env_vars, '')} COVERAGE=true TEST_ENV_COMMAND_NAME="#{command_name}")
+  env_vars = %(#{options.fetch(:env_vars, '')} TEST_ENV_COMMAND_NAME="#{command_name}").dup
+  env_vars << "COVERAGE=true" if ENV["USE_COVERALLS"]
   sh_in_dir(path.realpath, "#{env_vars} bundle exec rspec #{rspec_args}")
 end
 
 def clean_gen_assets(dir)
   path = calc_path(dir)
-  sh_in_dir(path.realpath, "npm run build:clean")
+  sh_in_dir(path.realpath, "yarn run build:clean")
 end

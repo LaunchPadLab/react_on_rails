@@ -6,12 +6,12 @@
 import test from 'tape';
 import { createStore } from 'redux';
 import React from 'react';
-
+import createReactClass from 'create-react-class';
 import ReactOnRails from '../src/ReactOnRails';
 
 test('ReactOnRails render returns a virtual DOM element for component', (assert) => {
   assert.plan(1);
-  const R1 = React.createClass({
+  const R1 = createReactClass({
     render() {
       return (
         <div> WORLD </div>
@@ -123,4 +123,25 @@ test('setStore and getStore', (assert) => {
   expected.set('storeGenerator', store);
 
   assert.deepEqual(ReactOnRails.stores(), expected);
+});
+
+test('clearHydratedStores', (assert) => {
+  assert.plan(2);
+  function reducer() {
+    return {};
+  }
+
+  function storeGenerator(props) {
+    return createStore(reducer, props);
+  }
+
+  ReactOnRails.setStore('storeGenerator', storeGenerator({}));
+  const actual = new Map();
+  actual.set(storeGenerator);
+  assert.deepEqual(actual, ReactOnRails.stores());
+
+  ReactOnRails.clearHydratedStores();
+  const expected = new Map();
+  assert.deepEqual(ReactOnRails.stores(), expected,
+    'clearHydratedStores should clear hydratedStores map');
 });

@@ -1,4 +1,5 @@
-import React, { PropTypes } from 'react';
+import PropTypes from 'prop-types';
+import React from 'react';
 import RailsContext from './RailsContext';
 
 // Example of CSS modules.
@@ -32,6 +33,7 @@ class HelloWorld extends React.Component {
   }
 
   render() {
+    // eslint-disable-next-line no-console
     console.log('HelloWorld demonstrating a call to console.log in ' +
       'spec/dummy/client/app/components/HelloWorld.jsx:18');
 

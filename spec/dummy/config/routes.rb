@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 Rails.application.routes.draw do
   # The priority is based upon order of creation: first created -> highest priority.
   # See how all your routes lay out with "rake routes".
@@ -28,4 +30,7 @@ Rails.application.routes.draw do
   get "pure_component" => "pages#pure_component"
   get "css_modules_images_fonts_example" => "pages#css_modules_images_fonts_example"
   get "turbolinks_cache_disabled" => "pages#turbolinks_cache_disabled"
+  get "rendered_html" => "pages#rendered_html"
+  get "react_helmet" => "pages#react_helmet"
+  get "image_example" => "pages#image_example"
 end

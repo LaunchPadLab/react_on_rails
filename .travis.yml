@@ -3,11 +3,9 @@ sudo: required
 language: ruby
 
 rvm:
-  - 2.0.0
-  - 2.1.10
-  - 2.2.6
+  # Rails 5 requires 2.2
   - 2.3.1
-
+  - 2.4.1
 services:
   - docker
 
@@ -15,6 +13,7 @@ cache:
   bundler: true
   directories:
     - node_modules # NPM packages
+  yarn: true
 
 gemfile:
   - spec/dummy/Gemfile
@@ -24,7 +23,6 @@ env:
     - RAILS_ENV=test
     - DRIVER=selenium_chrome
     - CHROME_BIN=/usr/bin/google-chrome
-    - ENABLE_TURBOLINKS_5=TRUE
     - USE_COVERALLS=TRUE
 
 before_install:
@@ -35,21 +33,21 @@ before_install:
   - "/sbin/start-stop-daemon --start --quiet --pidfile /tmp/custom_xvfb_99.pid --make-pidfile --background --exec /usr/bin/Xvfb -- :99 -ac -screen scn 1600x1200x16"
 
 install:
-  - nvm install node
+  - travis_retry gem install bundler
+  - travis_retry nvm install node 8.0.0
   - node -v
-  - npm install -g npm@3.10.7
-  - npm config set spin false
-  - npm install
-  - bundle install
-  - rake dummy_apps
-  - rake examples
-  - rake node_package
+  - travis_retry npm i -g yarn@0.27.5
+  - travis_retry yarn global add babel-cli
+  - travis_retry bundle install
+  - travis_retry yarn
+  - travis_retry yarn run build
+  - bundle exec rake prepare_for_ci
 
 before_script:
   - "export DISPLAY=:99"
 
 script:
-  - rake
+  - bundle exec rake
 
 notifications:
   slack:

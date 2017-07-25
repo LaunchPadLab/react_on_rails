@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "react_on_rails/utils"
 
 module ReactOnRails
@@ -6,7 +8,6 @@ module ReactOnRails
       include Utils::Required
 
       NO_PROPS = {}.freeze
-      HIDDEN = "display:none".freeze
 
       def initialize(name: required("name"), options: required("options"))
         @name = name
@@ -43,20 +44,6 @@ module ReactOnRails
 
       def raise_on_prerender_error
         retrieve_key(:raise_on_prerender_error)
-      end
-
-      def data
-        {
-          component_name: name,
-          props: props,
-          trace: trace,
-          dom_id: dom_id
-        }
-      end
-
-      def style
-        return nil if ReactOnRails.configuration.skip_display_none
-        HIDDEN
       end
 
       private

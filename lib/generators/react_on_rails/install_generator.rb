@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "rails/generators"
 require_relative "generator_helper"
 require_relative "generator_messages"
@@ -60,21 +62,19 @@ module ReactOnRails
       # js(.coffee) are not checked by this method, but instead produce warning messages
       # and allow the build to continue
       def installation_prerequisites_met?
-        !(missing_node? || missing_npm? || ReactOnRails::GitUtils.uncommitted_changes?(GeneratorMessages))
+        !(missing_node? || missing_yarn? || ReactOnRails::GitUtils.uncommitted_changes?(GeneratorMessages))
       end
 
-      def missing_npm?
-        return false unless `which npm`.blank?
-        error = "npm is required. Please install it before continuing. "
-        error << "https://www.npmjs.com/"
+      def missing_yarn?
+        return false unless ReactOnRails::Utils.running_on_windows? ? `where yarn`.blank? : `which yarn`.blank?
+        error = "yarn is required. Please install it before continuing. https://yarnpkg.com/en/docs/install"
         GeneratorMessages.add_error(error)
         true
       end
 
       def missing_node?
-        return false unless `which node`.blank?
-        error = "** nodejs is required. Please install it before continuing. "
-        error << "https://nodejs.org/en/"
+        return false unless ReactOnRails::Utils.running_on_windows? ? `where node`.blank? : `which node`.blank?
+        error = "** nodejs is required. Please install it before continuing. https://nodejs.org/en/"
         GeneratorMessages.add_error(error)
         true
       end

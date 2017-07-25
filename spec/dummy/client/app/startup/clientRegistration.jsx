@@ -1,3 +1,6 @@
+import 'babel-polyfill';
+import 'es5-shim';
+
 import ReactOnRails from 'react-on-rails';
 
 import HelloWorld from '../components/HelloWorld';
@@ -16,6 +19,15 @@ import DeferredRenderApp from './DeferredRenderAppRenderer';
 
 import SharedReduxStore from '../stores/SharedReduxStore';
 
+// Deferred render on the client side w/ server render
+import RenderedHtml from './ClientRenderedHtml';
+
+// Deferred render on the client side w/ server render with additional HTML strings:
+import ReactHelmetApp from './ReactHelmetClientApp';
+
+// Demonstrate using Images
+import ImageExample from '../components/ImageExample';
+
 ReactOnRails.setOptions({
   traceTurbolinks: true,
 });
@@ -32,7 +44,10 @@ ReactOnRails.register({
   CssModulesImagesFontsExample,
   ManualRenderApp,
   DeferredRenderApp,
-  CacheDisabled
+  CacheDisabled,
+  RenderedHtml,
+  ReactHelmetApp,
+  ImageExample,
 });
 
 ReactOnRails.registerStore({

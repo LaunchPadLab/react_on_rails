@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "rake"
 require "pathname"
 
@@ -49,7 +51,7 @@ module ReactOnRails
       end
 
       def webpack_bundles_dir
-        File.join(dir, "app", "assets", "javascripts", "webpack")
+        File.join(dir, "public", "webpack", "test")
       end
 
       def webpack_bundles
@@ -80,7 +82,7 @@ module ReactOnRails
         "--skip-bundle --skip-spring --skip-git --skip-test-unit --skip-active-record"
       end
 
-      %w(gen prepare clean clobber npm_install build_webpack_bundles).each do |task_type|
+      %w[gen prepare clean clobber npm_install build_webpack_bundles].each do |task_type|
         method_name_normal = "#{task_type}_task_name"          # ex: `clean_task_name`
         method_name_short = "#{method_name_normal}_short"      # ex: `clean_task_name_short`
 
@@ -115,7 +117,7 @@ module ReactOnRails
       end
 
       # generated files plus explicitly included files resulting from running
-      # bundle install, npm install, and generating the webpack bundles
+      # bundle install, yarn, and generating the webpack bundles
       def prepared_files
         generated_files
           .include(webpack_bundles)
@@ -129,9 +131,9 @@ module ReactOnRails
 
       # Assumes we are inside client folder
       def build_webpack_bundles_shell_commands
-        webpack_command = File.join("$(npm bin)", "webpack")
+        webpack_command = File.join("$(yarn bin)", "webpack")
         shell_commands = []
-        shell_commands << "#{webpack_command} --config webpack.config.js"
+        shell_commands << "NODE_ENV=test #{webpack_command} --config webpack.config.js"
       end
 
       # Assumes we are inside a rails app's folder and necessary gems have been installed

@@ -1,16 +1,39 @@
+# frozen_string_literal: true
+
 module ReactOnRails
   def self.configure
     yield(configuration)
     setup_config_values
   end
 
-  DEFAULT_GENERATED_ASSETS_DIR = File.join(%w(app assets webpack)).freeze
+  DEFAULT_GENERATED_ASSETS_DIR = File.join(%w[public webpack], Rails.env).freeze
 
   def self.setup_config_values
     ensure_webpack_generated_files_exists
     configure_generated_assets_dirs_deprecation
+    configure_skip_display_none_deprecation
     ensure_generated_assets_dir_present
     ensure_server_bundle_js_file_has_no_path
+    check_i18n_directory_exists
+    check_i18n_yml_directory_exists
+  end
+
+  def self.check_i18n_directory_exists
+    return unless @configuration.i18n_dir.present?
+    return if Dir.exist?(@configuration.i18n_dir)
+
+    raise "Error configuring /config/react_on_rails.rb: invalid value for `config.i18n_dir`. "\
+        "Directory does not exist: #{@configuration.i18n_dir}. Set to value to nil or comment it "\
+        "out if not using this i18n with React on Rails."
+  end
+
+  def self.check_i18n_yml_directory_exists
+    return unless @configuration.i18n_yml_dir.present?
+    return if Dir.exist?(@configuration.i18n_yml_dir)
+
+    raise "Error configuring /config/react_on_rails.rb: invalid value for `config.i18n_yml_dir`. "\
+        "Directory does not exist: #{@configuration.i18n_yml_dir}. Set to value to nil or comment it "\
+        "out if not using this i18n with React on Rails, or if you want to use all translation files."
   end
 
   def self.ensure_generated_assets_dir_present
@@ -51,6 +74,11 @@ module ReactOnRails
     @configuration.server_bundle_js_file = File.basename(@configuration.server_bundle_js_file)
   end
 
+  def self.configure_skip_display_none_deprecation
+    return if @configuration.skip_display_none.nil?
+    puts "[DEPRECATION] ReactOnRails: remove skip_display_none from configuration."
+  end
+
   def self.configuration
     @configuration ||= Configuration.new(
       generated_assets_dirs: nil,
@@ -66,12 +94,16 @@ module ReactOnRails
       development_mode: Rails.env.development?,
       server_renderer_pool_size: 1,
       server_renderer_timeout: 20,
-      skip_display_none: false,
+      skip_display_none: nil,
+
+      # skip_display_none is deprecated
       webpack_generated_files: [],
       rendering_extension: nil,
       server_render_method: "",
-      symlink_non_digested_assets_regex: /\.(png|jpg|jpeg|gif|tiff|woff|ttf|eot|svg|map)/,
+      symlink_non_digested_assets_regex: nil,
       npm_build_test_command: "",
+      i18n_dir: "",
+      i18n_yml_dir: "",
       npm_build_production_command: ""
     )
   end
@@ -80,10 +112,11 @@ module ReactOnRails
     attr_accessor :server_bundle_js_file, :prerender, :replay_console,
                   :trace, :development_mode,
                   :logging_on_server, :server_renderer_pool_size,
-                  :server_renderer_timeout, :raise_on_prerender_error,
-                  :skip_display_none, :generated_assets_dirs, :generated_assets_dir,
+                  :server_renderer_timeout, :skip_display_none, :raise_on_prerender_error,
+                  :generated_assets_dirs, :generated_assets_dir,
                   :webpack_generated_files, :rendering_extension, :npm_build_test_command,
                   :npm_build_production_command,
+                  :i18n_dir, :i18n_yml_dir,
                   :server_render_method, :symlink_non_digested_assets_regex
 
     def initialize(server_bundle_js_file: nil, prerender: nil, replay_console: nil,
@@ -94,12 +127,15 @@ module ReactOnRails
                    generated_assets_dir: nil, webpack_generated_files: nil,
                    rendering_extension: nil, npm_build_test_command: nil,
                    npm_build_production_command: nil,
+                   i18n_dir: nil, i18n_yml_dir: nil,
                    server_render_method: nil, symlink_non_digested_assets_regex: nil)
       self.server_bundle_js_file = server_bundle_js_file
       self.generated_assets_dirs = generated_assets_dirs
       self.generated_assets_dir = generated_assets_dir
       self.npm_build_test_command = npm_build_test_command
       self.npm_build_production_command = npm_build_production_command
+      self.i18n_dir = i18n_dir
+      self.i18n_yml_dir = i18n_yml_dir
 
       self.prerender = prerender
       self.replay_console = replay_console

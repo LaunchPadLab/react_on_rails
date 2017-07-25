@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module RenderingExtension
   # Return a Hash that contains custom values from the view context that will get passed to
   # all calls to react_component and redux_store for rendering
@@ -15,10 +17,10 @@ end
 ReactOnRails.configure do |config|
   # Directory where your generated assets go. All generated assets must go to the same directory.
   # Configure this in your webpack config files. This relative to your Rails root directory.
-  config.generated_assets_dir = File.join(%w(app assets webpack))
+  config.generated_assets_dir = File.join(%w[public webpack], Rails.env)
 
   # Define the files we need to check for webpack compilation when running tests.
-  config.webpack_generated_files = %w(app-bundle.js vendor-bundle.js server-bundle.js)
+  config.webpack_generated_files = %w[app-bundle.js vendor-bundle.js server-bundle.js]
 
   # This is the file used for server rendering of React when using `(prerender: true)`
   # If you are never using server rendering, you may set this to "".
@@ -27,13 +29,13 @@ ReactOnRails.configure do |config|
   config.server_bundle_js_file = "server-bundle.js"
 
   # If you are using the ReactOnRails::TestHelper.configure_rspec_to_compile_assets(config)
-  # with rspec then this controls what npm command is run
+  # with rspec then this controls what yarn command is run
   # to automatically refresh your webpack assets on every test run.
-  config.npm_build_test_command = "npm run build:test"
+  config.npm_build_test_command = "yarn run build:test"
 
   # This configures the script to run to build the production assets by webpack. Set this to nil
   # if you don't want react_on_rails building this file for you.
-  config.npm_build_production_command = "npm run build:production"
+  config.npm_build_production_command = "yarn run build:production"
 
   ################################################################################
   # CLIENT RENDERING OPTIONS
@@ -72,10 +74,19 @@ ReactOnRails.configure do |config|
   config.server_renderer_timeout = 20 # seconds
 
   ################################################################################
+  # I18N OPTIONS
+  ################################################################################
+  # Replace the following line to the location where you keep translation.js & default.js for use
+  # by the npm packages react-intl. Be sure this directory exists!
+  # config.i18n_dir = Rails.root.join("client", "app", "libs", "i18n")
+  #
+  # Replace the following line to the location where you keep your client i18n yml files
+  # that will source for automatic generation on translations.js & default.js
+  # config.i18n_yml_dir = Rails.root.join("config", "locales", "client")
+
+  ################################################################################
   # MISCELLANEOUS OPTIONS
   ################################################################################
-  # Default is false, enable if your content security policy doesn't include `style-src: 'unsafe-inline'`
-  config.skip_display_none = false
 
   # This allows you to add additional values to the Rails Context. Implement one static method
   # called `custom_context(view_context)` and return a Hash.
@@ -84,8 +95,8 @@ ReactOnRails.configure do |config|
   # The server render method - either ExecJS or NodeJS
   config.server_render_method = "ExecJS"
 
-  # Client js uses assets not digested by rails.
-  # For any asset matching this regex, a file is copied to the correct path to have a digest.
-  # To disable creating digested assets, set this parameter to nil.
-  config.symlink_non_digested_assets_regex = /\.(png|jpg|jpeg|gif|tiff|woff|ttf|eot|svg|map)/
+  # If you want to use webpack for CSS and images, and still use the asset pipeline,
+  # see https://github.com/shakacode/react_on_rails/blob/master/docs/additional-reading/rails-assets.md
+  # And you will use a setting like this.
+  # config.symlink_non_digested_assets_regex = /\.(png|jpg|jpeg|gif|tiff|woff|ttf|eot|svg|map)/
 end

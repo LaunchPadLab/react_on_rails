@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require_relative "task_helpers"
 include ReactOnRails::TaskHelpers
 
@@ -20,16 +22,16 @@ namespace :lint do
 
   desc "Run eslint as shell"
   task :eslint do
-    sh_in_dir(gem_root, "npm run eslint")
+    sh_in_dir(gem_root, "yarn run eslint")
   end
 
   desc "Run flow from shell"
   task :flow do
-    sh_in_dir(gem_root, "npm run flow")
+    sh_in_dir(gem_root, "yarn run flow")
   end
 
   desc "Run all eslint, flow, rubocop linters. Skip ruby-lint and scss"
-  task lint: [:eslint, :flow, :rubocop] do
+  task lint: %i[eslint flow rubocop] do
     puts "Completed all linting"
   end
 end

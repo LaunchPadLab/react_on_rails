@@ -1,8 +1,8 @@
 # Turbolinks
 
 * See [Turbolinks on Github](https://github.com/rails/turbolinks)
-* Currently support 2.5.x of Turbolinks and 5.0.0 of Turbolinks 5.
-* You may include Turbolinks either via npm (recommended) or via the gem.
+* React on Rails currently supports 2.5.x of Turbolinks and 5.0.0 of Turbolinks 5.
+* You may include Turbolinks either via yarn (recommended) or via the gem.
 
 ## Why Turbolinks?
 As you switch between Rails HTML controller requests, you will only load the HTML and you will
@@ -23,7 +23,7 @@ the JavaScript and stylesheets are cached by the browser, as they will still req
 * If you're using multiple Webpack bundles, be sure to ensure that there are no name conflicts between JS objects or redux store paths.
 
 ### Install Checklist
-1. Include turbolinks via npm as shown in the [react-webpack-rails-tutorial](https://github.com/shakacode/react-webpack-rails-tutorial/blob/8a6c8aa2e3b7ae5b08b0a9744fb3a63a2fe0f002/client/webpack.client.base.config.js#L22) or include the gem "turbolinks".
+1. Include turbolinks via yarn as shown in the [react-webpack-rails-tutorial](https://github.com/shakacode/react-webpack-rails-tutorial/blob/8a6c8aa2e3b7ae5b08b0a9744fb3a63a2fe0f002/client/webpack.client.base.config.js#L22) or include the gem "turbolinks".
 1. Included the proper "track" tags when you include the javascript and stylesheet:
   ```erb
     <%= stylesheet_link_tag 'application', media: 'all', 'data-turbolinks-track' => 'reload' %>
@@ -39,6 +39,15 @@ the JavaScript and stylesheets are cached by the browser, as they will still req
 Turbolinks 5 is now being supported. React on Rails will automatically detect which version of Turbolinks you are using and use the correct event handlers.
 
 For more information on Turbolinks 5: [https://github.com/turbolinks/turbolinks](https://github.com/turbolinks/turbolinks)
+
+## Turbolinks from NPM
+
+See the [instructions on installing from NPM](https://github.com/turbolinks/turbolinks#installation-using-npm).
+
+```js
+import Turbolinks from "turbolinks";
+Turbolinks.start();
+```
 
 ### async script loading
 Generally async script loading can be done like:
@@ -94,7 +103,7 @@ TURBO: reactOnRailsPageLoaded
 
 Turbolinks 5:
 ```
-TURBO: WITH TURBOLINKS 5: document turbolinks:before-cache and turbolinks:load handlers installed. (program)
+TURBO: WITH TURBOLINKS 5: document turbolinks:before-render and turbolinks:render handlers installed. (program)
 TURBO: reactOnRailsPageLoaded
 ```
 

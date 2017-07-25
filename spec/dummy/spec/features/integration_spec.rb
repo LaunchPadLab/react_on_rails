@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "rails_helper"
 
 def change_text_expect_dom_selector(dom_selector)
@@ -44,7 +46,7 @@ feature "Pages/Index", :js do
     end
 
     context "Simple Component Without Redux" do
-      include_examples "React Component", "div#HelloWorld-react-component-4"
+      include_examples "React Component", "div#HelloWorld-react-component-5"
       include_examples "React Component", "div#HelloWorldES5-react-component-5"
     end
 
@@ -158,6 +160,7 @@ feature "Code Splitting", :js do
   background { visit "/deferred_render_with_server_rendering" }
   scenario "clicking on async route causes async component to be fetched" do
     header_text = page.find(:css, "h1").text
+
     expect(header_text).to eq("Deferred Rendering")
     expect(subject).to_not have_text "Noice!"
 
@@ -173,6 +176,44 @@ feature "Code Splitting w/ Server Rendering", :js do
   scenario "loading an asyncronous route should not cause a client/server checksum mismatch" do
     root = page.find(:xpath, "//div[@data-reactroot]")
     expect(root["data-react-checksum"].present?).to be(true)
+  end
+end
+
+feature "renderedHtml from generator function", :js do
+  subject { page }
+  background { visit "/rendered_html" }
+  scenario "renderedHtml should not have any errors" do
+    expect(subject).to have_text 'Props: {"hello":"world"}'
+    expect(subject.html).to include("[SERVER] RENDERED RenderedHtml to dom node with id")
+  end
+end
+
+feature "generator function returns renderedHtml as an object with additional HTML markups" do
+  shared_examples "renderedHtmls should not have any errors and set correct page title" do
+    subject { page }
+    background { visit react_helmet_path }
+    scenario "renderedHtmls should not have any errors" do
+      expect(subject).to have_text 'Props: {"hello":"world"}'
+      expect(subject).to have_css "title", text: /\ACustom page title\z/, visible: false
+      expect(subject.html).to include("[SERVER] RENDERED ReactHelmetApp to dom node with id")
+    end
+  end
+
+  describe "with disabled JS" do
+    include_examples "renderedHtmls should not have any errors and set correct page title"
+  end
+
+  describe "with enabled JS", :js do
+    include_examples "renderedHtmls should not have any errors and set correct page title"
+  end
+end
+
+feature "display images", :js do
+  subject { page }
+  background { visit "/image_example" }
+  scenario "image_example should not have any errors" do
+    expect(subject).to have_text "Here is a label with a background-image from the CSS modules imported"
+    expect(subject.html).to include("[SERVER] RENDERED ImageExample to dom node with id")
   end
 end
 

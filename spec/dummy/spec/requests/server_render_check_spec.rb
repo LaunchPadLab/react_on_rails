@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "rails_helper"
 
 describe "Server Rendering", :server_rendering do
@@ -29,7 +31,7 @@ describe "Server Rendering", :server_rendering do
   end
 
   describe "reloading the server bundle" do
-    let(:server_bundle) { File.expand_path("../../../app/assets/webpack/server-bundle.js", __FILE__) }
+    let(:server_bundle) { File.expand_path("../../../public/webpack/" + Rails.env + "/server-bundle.js", __FILE__) }
     let!(:original_bundle_text) { File.read(server_bundle) }
 
     before do
@@ -63,14 +65,14 @@ describe "Server Rendering", :server_rendering do
       mail = DummyMailer.hello_email
       expect(mail.subject).to match "mail"
       expect(mail.body).to match "Mr. Mailing Server Side Rendering"
-      expect(mail.body).to match "inMailer&quot;:true"
+      expect(mail.body).to match "\"inMailer\":true"
     end
 
     it "sets inMailer properly" do
       get client_side_hello_world_path
       html_nodes = Nokogiri::HTML(response.body)
-      expect(html_nodes.css("div#js-react-on-rails-context").attr("data-rails-context").value)
-        .to match('inMailer\":false')
+      expect(html_nodes.at_css("script#js-react-on-rails-context").content)
+        .to match("\"inMailer\":false")
     end
   end
 
@@ -100,8 +102,8 @@ describe "Server Rendering", :server_rendering do
 
     def do_request(path)
       get(path,
-          { ab: :cd },
-          "HTTP_ACCEPT_LANGUAGE" => http_accept_language)
+          params: { ab: :cd },
+          headers: { "HTTP_ACCEPT_LANGUAGE" => http_accept_language })
     end
 
     context "shared redux store" do

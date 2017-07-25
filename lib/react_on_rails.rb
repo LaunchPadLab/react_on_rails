@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "rails"
 
 require "react_on_rails/controller"
@@ -16,3 +18,4 @@ require "react_on_rails/test_helper/webpack_assets_compiler"
 require "react_on_rails/test_helper/webpack_assets_status_checker"
 require "react_on_rails/test_helper/ensure_assets_compiled"
 require "react_on_rails/test_helper/node_process_launcher"
+require "react_on_rails/locales_to_js"

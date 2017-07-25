@@ -10,7 +10,7 @@ The best way to understand these standards is to follow this example: [github.co
 1. `/client/app/bundles`: Top level of different app domains. Use a name within this directory for you app domains. For example, if you had a domain called `widget-editing`, then you would have: `/client/app/bundles/widget-editing`
 1. `/client/app/lib`: Common code for bundles
 1. Within each bundle directory (or the lib directory), such as a domain named "comments"
-`/client/app/bundle/comments`, use following directory structure:
+`/client/app/bundles/comments`, use following directory structure:
 
   * `/actions`: Redux actions.
   * `/components`: "dumb" components (no connections to Redux or Ajax). These get props and can render themselves and children.
@@ -42,3 +42,8 @@ This technique involves customization of the webpack config files to generate CS
 1. You can use [CSS modules](https://github.com/css-modules/css-modules), which is super compelling once you seen the benefits.
 1. You can do hot reloading of your assets. Thus, you do not have to refresh your web page to see asset change, including changing styles.
 1. You can run your client code on a mocked out express server for super fast prototyping. In other words, your client application can somewhat more easily be move to a different application server.
+
+#### Updates 2017-03-04 Regarding CSS handled by Webpack
+* See article [Best practices for CSS and CSS Modules using Webpack](https://forum.shakacode.com/t/best-practices-for-css-and-css-modules-using-webpack/799).
+* In the near future, all docs will be updated to Webpack v2 and probably recommended to move all CSS handling to Webpack v2 for advanced users. In the near term, global CSS handled by Rails will be best for simple projects. Another data point is that Rails is moving in direction of handling JavaScript, but not CSS, with [Webpacker](https://github.com/rails/webpacker).
+

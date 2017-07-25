@@ -1,3 +1,6 @@
+import 'babel-polyfill';
+import 'es5-shim';
+
 // Shows the mapping from the exported object to the name used by the server rendering.
 import ReactOnRails from 'react-on-rails';
 
@@ -29,6 +32,15 @@ import SharedReduxStore from '../stores/SharedReduxStore';
 // Deferred render on the client side w/ server render
 import DeferredRenderApp from './DeferredRenderAppServer';
 
+// Deferred render on the client side w/ server render
+import RenderedHtml from './ServerRenderedHtml';
+
+// Deferred render on the client side w/ server render with additional HTML strings:
+import ReactHelmetApp from './ReactHelmetServerApp';
+
+// Demonstrate using Images
+import ImageExample from '../components/ImageExample';
+
 ReactOnRails.register({
   HelloWorld,
   HelloWorldWithLogAndThrow,
@@ -41,6 +53,9 @@ ReactOnRails.register({
   PureComponent,
   CssModulesImagesFontsExample,
   DeferredRenderApp,
+  RenderedHtml,
+  ReactHelmetApp,
+  ImageExample,
 });
 
 ReactOnRails.registerStore({

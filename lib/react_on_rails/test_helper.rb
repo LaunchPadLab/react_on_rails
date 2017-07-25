@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module ReactOnRails
   module TestHelper
     # Because you will probably want to run RSpec tests that rely on compiled webpack assets
@@ -19,7 +21,7 @@ module ReactOnRails
     # once per test run.
     #
     # If you do not want to be slowed down by re-compiling webpack assets from scratch every test
-    # run, you can call `npm run build:client` (and `npm run build:server` if doing server
+    # run, you can call `yarn run build:client` (and `yarn run build:server` if doing server
     # rendering) to have webpack recompile these files in the background, which will be *much*
     # faster. The helper looks for these processes and will abort recompiling if it finds them
     # to be running.
@@ -31,7 +33,7 @@ module ReactOnRails
     # metatags - metatags to add the ensure_assets_compiled check.
     #            Default is :js, :server_rendering
     def self.configure_rspec_to_compile_assets(config, *metatags)
-      metatags = [:js, :server_rendering] if metatags.empty?
+      metatags = %i[js server_rendering controller] if metatags.empty?
 
       metatags.each do |metatag|
         config.before(:example, metatag) { ReactOnRails::TestHelper.ensure_assets_compiled }
@@ -55,7 +57,6 @@ module ReactOnRails
                                     client_dir: nil,
                                     generated_assets_dir: nil,
                                     webpack_generated_files: nil)
-
       if webpack_assets_status_checker.nil?
         client_dir ||= Rails.root.join("client")
         generated_assets_dir ||= ReactOnRails.configuration.generated_assets_dir

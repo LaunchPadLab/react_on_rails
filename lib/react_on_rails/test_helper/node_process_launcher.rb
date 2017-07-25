@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module ReactOnRails
   module TestHelper
     def self.launch_node
@@ -5,7 +7,7 @@ module ReactOnRails
 
       path = "#{::Rails.root}/client/node"
       puts "Launching NodeJS server at #{path}"
-      system("cd #{path} && npm start &")
+      system("cd #{path} && yarn start &")
       sleep(1)
     end
   end

@@ -1,36 +1,22 @@
-# Entry Points and Globally Exposing Objects
+# Webpack Tips
 
-You should ensure you configure the entry points correctly for webpack.
+## Where do I learn about advanced Webpack setups, such as with "CSS Modules", "Code Splitting", etc
+You can try out example app, [shakacode/react-webpack-rails-tutorial](https://github.com/shakacode/react-webpack-rails-tutorial). We're building comprehensive production examples in our new, premium product, [**React on Rails Pro**](https://forum.shakacode.com/t/introducing-react-on-rails-pro-subscriptions/785). If you're interested, please see the details in [this forum post](https://forum.shakacode.com/t/introducing-react-on-rails-pro-subscriptions/785).
 
-## When using React 0.14 and greater
+## Webpack v1 or v2?
+We recommend using Webpack version 2.3.1 or greater.
 
-You need both include `react-dom/server` and `react` as values for `entry`, like this:
+## yarn or npm?
+Yarn is the current recommendation!
 
-```
-  entry: {
+## Entry Points
 
-    // See use of 'vendor' in the CommonsChunkPlugin inclusion below.
-    vendor: [
-      'babel-core/polyfill',
-      'react',
-      'react-dom',
-    ],
-```
+You should ensure you configure the entry points correctly for webpack if you want to break out libraries into a "vendor" bundle where your libraries are packaged separately from your app's code. If you send web clients your vendor bundle separately from your app bundles, then web clients might have the vendor bundle cached while they receive updates for your app.
 
-and you need to expose them:
+Webpack v2 makes this very convenient! See:
 
-```
-      // React is necessary for the client rendering:
-      {test: require.resolve('react'), loader: 'expose?React'},
-      {test: require.resolve('react-dom'), loader: 'expose?ReactDOM'},
-```
+* [Implicit Common Vendor Chunk](https://webpack.js.org/guides/code-splitting-libraries/#implicit-common-vendor-chunk)
+* [Manifest File](https://webpack.js.org/guides/code-splitting-libraries/#manifest-file)
 
-and use this line rather than `{test: require.resolve('react-dom'), loader: 'expose?ReactDOM'},`:
 
-```
-   {test: require.resolve('react-dom/server'), loader: 'expose?ReactDOMServer'},
-```
 
-## When you use React 0.13
-
-You don't need to put in react-dom.

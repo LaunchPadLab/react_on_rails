@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "rails/generators"
 require_relative "generator_messages"
 require_relative "generator_helper"
@@ -27,7 +29,7 @@ module ReactOnRails
           node_modules
 
           # Generated js bundles
-          /app/assets/webpack/*
+          /public/webpack/*
         DATA
 
         if dest_file_exists?(".gitignore")
@@ -37,72 +39,39 @@ module ReactOnRails
         end
       end
 
-      def update_application_js
-        data = <<-DATA.strip_heredoc
-          //= require webpack-bundle
-
-        DATA
-
-        app_js_path = "app/assets/javascripts/application.js"
-        found_app_js = dest_file_exists?(app_js_path) || dest_file_exists?("#{app_js_path}.coffee")
-        if found_app_js
-          prepend_to_file(found_app_js, data)
-        else
-          create_file(app_js_path, data)
-        end
-      end
-
-      def strip_application_js_of_double_blank_lines
-        application_js = File.join(destination_root, "app/assets/javascripts/application.js")
-        gsub_file(application_js, /^\n^\n/, "\n")
-      end
-
       def create_react_directories
-        dirs = %w(components containers startup)
+        dirs = %w[components containers startup]
         dirs.each { |name| empty_directory("client/app/bundles/HelloWorld/#{name}") }
       end
 
       def copy_base_files
         base_path = "base/base/"
-        base_files = %w(app/controllers/hello_world_controller.rb
+        base_files = %w[app/controllers/hello_world_controller.rb
+                        config/webpacker_lite.yml
                         client/.babelrc
                         client/webpack.config.js
-                        client/REACT_ON_RAILS_CLIENT_README.md)
+                        client/REACT_ON_RAILS_CLIENT_README.md]
         base_files.each { |file| copy_file("#{base_path}#{file}", file) }
       end
 
       def template_base_files
         base_path = "base/base/"
-        %w(config/initializers/react_on_rails.rb
+        %w[app/views/layouts/hello_world.html.erb
+           config/initializers/react_on_rails.rb
            Procfile.dev
-           package.json
-           client/package.json).each { |file| template("#{base_path}#{file}.tt", file) }
+           client/package.json].each { |file| template("#{base_path}#{file}.tt", file) }
+      end
+
+      def template_package_json
+        if dest_file_exists?("package.json")
+          add_yarn_postinstall_script_in_package_json
+        else
+          template("base/base/package.json", "package.json")
+        end
       end
 
       def add_base_gems_to_gemfile
-        append_to_file("Gemfile", "\ngem 'mini_racer', platforms: :ruby\n")
-      end
-
-      ASSETS_RB_APPEND = <<-DATA.strip_heredoc
-# Add client/assets/ folders to asset pipeline's search path.
-# If you do not want to move existing images and fonts from your Rails app
-# you could also consider creating symlinks there that point to the original
-# rails directories. In that case, you would not add these paths here.
-# If you have a different server bundle file than your client bundle, you'll
-# need to add it here, like this:
-# Rails.application.config.assets.precompile += %w( server-bundle.js )
-
-# Add folder with webpack generated assets to assets.paths
-Rails.application.config.assets.paths << Rails.root.join("app", "assets", "webpack")
-      DATA
-
-      def append_to_assets_initializer
-        assets_initializer = File.join(destination_root, "config/initializers/assets.rb")
-        if File.exist?(assets_initializer)
-          append_to_file(assets_initializer, ASSETS_RB_APPEND)
-        else
-          create_file(assets_initializer, ASSETS_RB_APPEND)
-        end
+        append_to_file("Gemfile", "\ngem 'mini_racer', platforms: :ruby\ngem 'webpacker_lite'\n")
       end
 
       def append_to_spec_rails_helper
@@ -138,9 +107,13 @@ Rails.application.config.assets.paths << Rails.root.join("app", "assets", "webpa
 
           What to do next:
 
-            - Ensure your bundle and npm are up to date.
+            - Include your webpack assets to your application layout.
 
-                bundle && npm i
+              <%= javascript_pack_tag 'main' %>
+
+            - Ensure your bundle and yarn installs of dependencies are up to date.
+
+                bundle && yarn
 
             - Run the foreman command to start the rails server and run webpack in watch mode.
 
@@ -152,6 +125,55 @@ Rails.application.config.assets.paths << Rails.root.join("app", "assets", "webpa
       end
 
       private
+
+      def add_yarn_postinstall_script_in_package_json
+        client_package_json = File.join(destination_root, "package.json")
+        contents = File.read(client_package_json)
+        postinstall = %("postinstall": "cd client && yarn install")
+        if contents =~ /"scripts" *:/
+          replacement = <<-STRING
+  "scripts": {
+    #{postinstall},
+STRING
+          regexp = / {2}"scripts": {/
+        else
+          regexp = /^{/
+          replacement = <<-STRING.strip_heredoc
+            {
+              "scripts": {
+                #{postinstall}
+              },
+          STRING
+        end
+
+        contents.gsub!(regexp, replacement)
+        File.open(client_package_json, "w+") { |f| f.puts contents }
+      end
+
+      # From https://github.com/rails/rails/blob/4c940b2dbfb457f67c6250b720f63501d74a45fd/railties/lib/rails/generators/rails/app/app_generator.rb
+      def app_name
+        @app_name ||= (defined_app_const_base? ? defined_app_name : File.basename(destination_root))
+                      .tr('\\', "").tr(". ", "_")
+      end
+
+      def defined_app_name
+        defined_app_const_base.underscore
+      end
+
+      def defined_app_const_base
+        Rails.respond_to?(:application) && defined?(Rails::Application) &&
+          Rails.application.is_a?(Rails::Application) && Rails.application.class.name.sub(/::Application$/, "")
+      end
+
+      alias defined_app_const_base? defined_app_const_base
+
+      def app_const_base
+        @app_const_base ||= defined_app_const_base || app_name.gsub(/\W/, "_").squeeze("_").camelize
+      end
+
+      def app_const
+        @app_const ||= "#{app_const_base}::Application"
+      end
 
       def add_configure_rspec_to_compile_assets(helper_file)
         search_str = "RSpec.configure do |config|"
